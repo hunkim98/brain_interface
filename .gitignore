@@ -1,1 +1,5 @@
 .venv
+data/motor
+data/motor_imagery
+data/test
+intermediate_datafiles
