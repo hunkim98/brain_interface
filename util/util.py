@@ -12,11 +12,20 @@ def get_chapter(module_path):
 
 
 def normalize_dataset(data_table, columns):
+    epsilon = 1e-10
     dt_norm = copy.deepcopy(data_table)
     for col in columns:
-        dt_norm[col] = (data_table[col] - data_table[col].mean()) / (
-            data_table[col].max() - data_table[col].min()
-        )
+        col_max = data_table[col].max()
+        col_min = data_table[col].min()
+        col_range = col_max - col_min
+
+        # If the range is effectively zero, set normalized values to zero
+        if col_range < epsilon:
+            dt_norm[col] = 0
+        else:
+            dt_norm[col] = (data_table[col] - data_table[col].mean()) / (
+                col_range + epsilon
+            )
     return dt_norm
 
 
