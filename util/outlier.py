@@ -58,6 +58,9 @@ class DistributionBasedOutlierDetection:
         data = data_table[data_table[col].notnull()][col]
         g = GaussianMixture(n_components, max_iter=100, n_init=1)
         reshaped_data = np.array(data.values.reshape(-1, 1))
+        # change inf values to nan
+        reshaped_data = np.nan_to_num(reshaped_data)
+
         g.fit(reshaped_data)
 
         # Predict the probabilities

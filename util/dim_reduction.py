@@ -55,10 +55,10 @@ class IndependentComponentAnalysis:
 
         # perform the FastICA for all components.
         self.ica = FastICA(n_components=len(cols))
-        self.ica.fit(dt_norm[cols])
+        new_values = self.ica.fit_transform(dt_norm[cols])
 
         # Transform our old values.
-        new_values = self.ica.transform(dt_norm[cols])
+        # new_values = self.ica.transform(dt_norm[cols])
 
         # And add the new ones:
         for comp in range(0, len(cols)):

@@ -26,6 +26,8 @@ def normalize_dataset(data_table, columns):
             dt_norm[col] = (data_table[col] - data_table[col].mean()) / (
                 col_range + epsilon
             )
+        # change all strange inf values or small values to zero
+        dt_norm[col] = dt_norm[col].replace([np.inf, -np.inf], np.nan).fillna(0)
     return dt_norm
 
 

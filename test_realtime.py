@@ -150,7 +150,7 @@ def wave_handler(address: str, *args):
         print(proba)
 
         # step 5: update graph
-        plot_update(pred)
+        # plot_update(pred)
 
         # step 6: now, we reinit datapoints and the Vals dict and start again
         datapoints = 0
@@ -181,9 +181,9 @@ if __name__ == "__main__":
     ip = "0.0.0.0"
     port = 5000
 
-    thread = threading.Thread(target=init_plot)
-    thread.daemon = True
-    thread.start()
+    # thread = threading.Thread(target=init_plot)
+    # thread.daemon = True
+    # thread.start()
 
     # Init Muse Listeners
     dispatcher = dispatcher.Dispatcher()

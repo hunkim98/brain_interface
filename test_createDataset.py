@@ -5,6 +5,7 @@ import copy
 import os
 import sys
 from util.createDataset import CreateDataset
+import pandas as pd
 
 # directory paths for the current experiment (change it if needed)
 FOLDER_PATH = Path("./data/motor_imagery_copy")
@@ -14,6 +15,27 @@ GRANULARITY = 100  # milisecond per instance; we settle at 100 ms.
 
 
 RESULT_PATH.mkdir(exist_ok=True, parents=True)
+
+# count total labels
+marker_dict = {}
+for instance in os.scandir(FOLDER_PATH):
+    dataset = pd.read_csv(instance.path, skipinitialspace=True)
+    # filter dataset where column "Elements" start with "/Marker"
+    dataset["Elements"] = dataset["Elements"].astype(str)
+    filtered = dataset[dataset["Elements"].str.startswith("/Marker")][
+        "Elements"
+    ].unique()
+    for marker in filtered:
+        label = marker.split("/")[-1]
+        if marker in marker_dict:
+            marker_dict[label] += 1
+        else:
+            marker_dict[label] = 1
+    # get the string after "/Marker/"
+
+print(marker_dict)
+
+
 for instance in os.scandir(FOLDER_PATH):  # go through all instances of experiments
     instance_path = instance.path
     print(

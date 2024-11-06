@@ -20,6 +20,7 @@ from scipy import stats
 class CreateDataset:
     base_dir = ""
     granularity = 0
+    labels = []
 
     def __init__(self, base_dir, granularity):
         self.base_dir = base_dir
@@ -49,11 +50,16 @@ class CreateDataset:
                 left.append(0)
                 right.append(1)
             else:
+                # this means label is 3 or nan, so we add 0 to both
                 left.append(0)
                 right.append(0)
         dataset["label_left"] = left
         dataset["label_right"] = right
+        dataset["label_on"] = np.logical_or(left, right)
         return dataset
+
+    def add_label_activate(self, dataset):
+        label_ons = []
 
     def create_dataset(self, start_time, end_time, cols):
         # we will create a dataset with granularity as the time step
@@ -85,6 +91,7 @@ class CreateDataset:
                     data_table.loc[data_table.index[i], str(col)] = np.nan
         return data_table
 
+    # this is categorical sampling, we take the mode of the labels
     def cat_sampling(self, dataset, data_table, label_cols):
         for i in range(0, len(data_table.index)):
             relevant_rows = dataset[
@@ -111,6 +118,20 @@ class CreateDataset:
     def add_data(self, file, value_cols, label_cols, aggregation="avg"):
         dataset = pd.read_csv(file, skipinitialspace=True)
 
+        marker_dict = {}
+        filtered = dataset[dataset["Elements"].str.startswith("/Marker")][
+            "Elements"
+        ].unique()
+        for marker in filtered:
+            label = marker.split("/")[-1]
+            if marker in marker_dict:
+                marker_dict[label] += 1
+            else:
+                marker_dict[label] = 1
+
+        # we update the labels with keys
+        self.labels = list(marker_dict.keys())
+
         dataset["TimeStamp"] = pd.to_datetime(dataset["TimeStamp"])
         dataset = self.add_left_right(
             dataset
@@ -120,8 +141,6 @@ class CreateDataset:
         dataset.dropna(
             thresh=threshold, axis=0, inplace=True
         )  # delete the rows of logs of markers (rows with > col-10 nans)
-
-        # find any rows that have "Delta_AF7" is null
 
         # now we initialize the sampled dataset with our granularity
         all_columns = value_cols + label_cols

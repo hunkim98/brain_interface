@@ -151,88 +151,35 @@ class PrepareDatasetForLearning:
         test_set_X = None
         test_set_y = None
 
-        # If we want to learn to predict well for unknown users / experiments.
-        if unknown_users:
-            # Shuffle the users we have.
-            random.seed(random_state)
-            indices = range(0, len(datasets))
-            random.shuffle(indices)
-            training_len = int(split_fracs[0] * len(datasets))
+        init = True
+        # If we want to predict for each experiment
+        # we split each dataset individually in a training and test set and then add all data together randomly.
+        for i in range(0, len(datasets)):
+            (
+                training_set_X_person,
+                val_set_X_person,
+                test_set_X_person,
+                training_set_y_person,
+                val_set_y_person,
+                test_set_y_person,
+            ) = self.split_single_dataset_classification(
+                datasets[i],
+                class_labels,
+                matching,
+                split_fracs,
+                filter=filter,
+                temporal=temporal,
+                random_state=random_state,
+            )
 
-            # And select the data of the first fraction training_frac of users as the training set and the data of
-            # the remaining users as test set.
-            for i in range(0, training_len):
-                # We use the single dataset function for classification and add it to the training data
-                (
-                    training_set_X_person,
-                    test_set_X_person,
-                    training_set_y_person,
-                    test_set_y_person,
-                ) = self.split_single_dataset_classification(
-                    datasets[indices[i]],
-                    class_labels,
-                    matching,
-                    [1, 1],
-                    filter=filter,
-                    temporal=temporal,
-                    random_state=random_state,
-                )
-                # We add a person column.
-                training_set_X_person[self.person_col] = indices[i]
-                training_set_X = self.update_set(training_set_X, training_set_X_person)
-                training_set_y = self.update_set(training_set_y, training_set_y_person)
+            training_set_X = self.update_set(training_set_X, training_set_X_person)
+            training_set_y = self.update_set(training_set_y, training_set_y_person)
 
-            for j in range(training_len, len(datasets)):
-                # We use the single dataset function for classification and add it to the test data
-                (
-                    training_set_X_person,
-                    test_set_X_person,
-                    training_set_y_person,
-                    test_set_y_person,
-                ) = self.split_single_dataset_classification(
-                    datasets[indices[j]],
-                    class_labels,
-                    matching,
-                    1,
-                    filter=filter,
-                    temporal=temporal,
-                    random_state=random_state,
-                )
-                # We add a person column.
-                training_set_X_person[self.person_col] = indices[j]
-                test_set_X = self.update_set(test_set_X, training_set_X_person)
-                test_set_y = self.update_set(test_set_y, training_set_y_person)
+            val_set_X = self.update_set(val_set_X, val_set_X_person)
+            val_set_y = self.update_set(val_set_y, val_set_y_person)
 
-        else:
-            init = True
-            # If we want to predict for each experiment
-            # we split each dataset individually in a training and test set and then add all data together randomly.
-            for i in range(0, len(datasets)):
-                (
-                    training_set_X_person,
-                    val_set_X_person,
-                    test_set_X_person,
-                    training_set_y_person,
-                    val_set_y_person,
-                    test_set_y_person,
-                ) = self.split_single_dataset_classification(
-                    datasets[i],
-                    class_labels,
-                    matching,
-                    split_fracs,
-                    filter=filter,
-                    temporal=temporal,
-                    random_state=random_state,
-                )
-
-                training_set_X = self.update_set(training_set_X, training_set_X_person)
-                training_set_y = self.update_set(training_set_y, training_set_y_person)
-
-                val_set_X = self.update_set(val_set_X, val_set_X_person)
-                val_set_y = self.update_set(val_set_y, val_set_y_person)
-
-                test_set_X = self.update_set(test_set_X, test_set_X_person)
-                test_set_y = self.update_set(test_set_y, test_set_y_person)
+            test_set_X = self.update_set(test_set_X, test_set_X_person)
+            test_set_y = self.update_set(test_set_y, test_set_y_person)
 
         return (
             training_set_X,

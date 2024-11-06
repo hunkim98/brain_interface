@@ -30,9 +30,6 @@ def main():
     # now all dataframes are added to the list all_datasets
     # print(all_datasets)
 
-    # Let's create our visualization class again.
-    DataViz = VisualizeDataset(__file__)
-
     """
     the classification of the motor imagery can be seen as a non-temporal task, as we want to predict imagery based on a window of e.g. 2 sec,
     without taking into account previous windows.
@@ -121,60 +118,19 @@ def main():
     # we will select the top 20 features based on an experiment with a deciscion tree which we will use as input for our models as well
     # this is already been run, see below
 
-    """
-    selected_features, ordered_features, ordered_scores = fs.forward_selection(num_features,
-                                                                  train_X[all_features],
-                                                                  test_X[all_features],
-                                                                  train_y,
-                                                                  test_y,
-                                                                  gridsearch=False)
+    selected_features, ordered_features, ordered_scores = fs.forward_selection(
+        num_features,
+        train_X[all_features],
+        test_X[all_features],
+        train_y,
+        test_y,
+        gridsearch=False,
+    )
     print(selected_features)
-    """
-
-    # the best feature are right now:
-    selected_features = [
-        "Delta_AF7_temp_max_ws_10",
-        "Alpha_TP9_temp_mean_ws_10",
-        "Delta_AF7_temp_slope_ws_30",
-        "FastICA_2",
-        "Alpha_TP9_temp_median_ws_20",
-        "Delta_AF8_temp_max_ws_10",
-        "Beta_TP10_freq_30.0_Hz_ws_10",
-        "Beta_TP9_temp_std_ws_20",
-        "Theta_TP10_temp_max_ws_20",
-        "Gamma_TP9_temp_median_ws_20",
-        "Gamma_TP10_freq_30.0_Hz_ws_10",
-        "Alpha_TP10_temp_std_ws_20",
-        "Gamma_AF7_freq_30.0_Hz_ws_10",
-        "Delta_TP10",
-        "Beta_TP9_temp_median_ws_20",
-        "Delta_TP10_temp_min_ws_20",
-        "Theta_TP9_temp_median_ws_30",
-        "Delta_AF8_temp_min_ws_20",
-        "Delta_AF8_temp_mean_ws_10",
-        "Beta_TP9_freq_0.0_Hz_ws_10",
-    ]
-
-    possible_feature_sets = [
-        basic_features,
-        basic_w_PCA,
-        basic_w_ICA,
-        all_features,
-        selected_features,
-    ]
-    feature_names = [
-        "initial set",
-        "basic_w_PCA",
-        "basic_w_ICA",
-        "all_features",
-        "Selected features",
-    ]
-    N_KCV_REPEATS = 10  # some non deterministic models we will run a couple of times as their inits are random to get average results
 
     # then here, we run each model
     learner = ClassificationAlgorithms()
     eval = ClassificationEvaluation()
-    scores_over_all_algs = []
 
     # and then we chose the 1 or 2 best ones to apply gridsearch etc
     # from my initial results, RF with all features seems to perform best!
