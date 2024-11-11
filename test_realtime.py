@@ -7,6 +7,8 @@
 # https://github.com/Sentdex/BCI/blob/master/testing_and_making_data.py
 
 # step 1: receive data from streaming
+import warnings
+
 from pythonosc import dispatcher
 from pythonosc import osc_server
 import random
@@ -27,6 +29,10 @@ from util.frequencyAbstraction import FourierTransformation
 from collections import defaultdict
 import datetime as dt
 import pickle
+
+
+# Suppress all warnings
+warnings.filterwarnings("ignore")
 
 # ALL GLOBAL VARIABLES:
 hsi = [4, 4, 4, 4]
@@ -60,22 +66,19 @@ Vals = defaultdict(list, {k: [] for k in cols})
 
 # call class instances:
 OutlierDistr = DistributionBasedOutlierDetection()
-PCA = PrincipalComponentAnalysis()
-ICA = IndependentComponentAnalysis()
+
 NumAbs = NumericalAbstraction()
 FreqAbs = FourierTransformation()
 
 datapoints = 0
 place = 0
 
-rf_model = pickle.load(open("final_random_forest_model_BCI.sav", "rb"))
-
 
 def hsi_handler(address: str, *args):
     global hsi, hsi_string
     hsi = args
     if (args[0] + args[1] + args[2] + args[3]) == 4:
-        hsi_string_new = "Muse Fit Good"
+        hsi_string_new = "Muse Fit Good + Will start predicting"
     else:
         hsi_string_new = "Muse Fit Bad on: "
         if args[0] != 1:
@@ -86,75 +89,99 @@ def hsi_handler(address: str, *args):
             hsi_string_new += "Right Forehead. "
         if args[3] != 1:
             hsi_string_new += "Right Ear."
+        hsi_string_new = "Muse Fit Bad..."
     if hsi_string != hsi_string_new:
         hsi_string = hsi_string_new
         print(hsi_string)
 
 
+error_happened = False
+
+
 def wave_handler(address: str, *args):
-    global Vals, datapoints, rf_model, cols
-    wave = args[0][0]
+    global Vals, datapoints, rf_model, cols, error_happened
+    PCA = PrincipalComponentAnalysis()
+    ICA = IndependentComponentAnalysis()
+    # print("working?")
+    try:
+        # if not error_happened:
+        #     print("working")
+        wave = args[0][0]
 
-    # channel configuration = [TP9, Fp1, Fp2, TP10] as per
-    # https://web.archive.org/web/20181105231756/http://developer.choosemuse.com/tools/available-data#Absolute_Band_Powers
-    channels = ["TP9", "Fp1", "Fp2", "TP10"]
+        # channel configuration = [TP9, Fp1, Fp2, TP10] as per
+        # https://web.archive.org/web/20181105231756/http://developer.choosemuse.com/tools/available-data#Absolute_Band_Powers
+        channels = ["TP9", "Fp1", "Fp2", "TP10"]
 
-    for i in [
-        0,
-        1,
-        2,
-        3,
-    ]:  # for each of the 4 sensors update the specific brain wave data (delta, theta etc)
-        key = wave + "_" + channels[i]
-        Vals[key].append(args[i + 1])  # add values to dict
-        datapoints += 1
+        for i in [
+            0,
+            1,
+            2,
+            3,
+        ]:  # for each of the 4 sensors update the specific brain wave data (delta, theta etc)
+            key = wave + "_" + channels[i]
+            Vals[key].append(args[i + 1])  # add values to dict
+            datapoints += 1
 
-    # we have 20 features, and we want to have 3 seconds of data, data comes in 10Hz, so we first have to add 20x30=600 datapoints before moving on
-    if datapoints == 600:
-        # step 1: create dataframe
-        # we add datetime to the df as this makes it compatible with our earlier code
-        df = pd.DataFrame.from_dict(Vals, orient="index").transpose()
-        df.index = pd.date_range("20180101", periods=df.shape[0], freq="100ms")
+        # we have 20 features, and we want to have 3 seconds of data, data comes in 10Hz, so we first have to add 20x30=600 datapoints before moving on
+        if datapoints == 600:
+            # step 1: create dataframe
+            # we add datetime to the df as this makes it compatible with our earlier code
+            df = pd.DataFrame.from_dict(Vals, orient="index").transpose()
+            df.index = pd.date_range("20180101", periods=df.shape[0], freq="100ms")
 
-        # step 2: outlier detection
-        for col in [c for c in df.columns]:
-            df = OutlierDistr.mixture_model(df, col, 3)
-            df.loc[df[f"{col}_mixture"] < 0.0005, col] = np.nan
-            del df[col + "_mixture"]
-            df[col] = df[col].interpolate()
-            df[col] = df[col].fillna(method="bfill")
+            # step 2: outlier detection
+            for col in [c for c in df.columns]:
+                df = OutlierDistr.mixture_model(df, col, 3)
+                df.loc[df[f"{col}_mixture"] < 0.0005, col] = np.nan
+                del df[col + "_mixture"]
 
-        # step 3: pre-process
-        n_pcs = 4
-        df = PCA.apply_pca(copy.deepcopy(df), cols, n_pcs)
-        df = ICA.apply_ica(copy.deepcopy(df), cols)
+                df[col] = df[col].interpolate()
+                df[col] = df[col].replace([np.inf, -np.inf], np.nan).fillna(0)
+                df[col] = df[col].fillna(method="bfill")
 
-        window_sizes = [10, 20, 30]
-        fs = 100
+            # step 3: pre-process
+            n_pcs = 4
 
-        for ws in window_sizes:
-            df = NumAbs.abstract_numerical(
-                df, cols, ws, ["mean", "std", "max", "min", "median", "slope"]
-            )
-        df = FreqAbs.abstract_frequency(df, cols, window_sizes[0], fs)
+            # check
+            df = PCA.apply_pca(copy.deepcopy(df), cols, n_pcs)
+            df = ICA.apply_ica(copy.deepcopy(df), cols)
 
-        # now we have exactly 1 row which has no NaN, so choose that row
-        df.dropna(axis=0, inplace=True)
+            window_sizes = [10, 20, 30]
+            fs = 100
 
-        input = df.to_numpy()
+            for ws in window_sizes:
+                df = NumAbs.abstract_numerical(
+                    df, cols, ws, ["mean", "std", "max", "min", "median", "slope"]
+                )
+            df = FreqAbs.abstract_frequency(df, cols, window_sizes[0], fs)
 
-        # step 4: predict
-        pred = rf_model.predict(input)
-        proba = rf_model.predict_proba(input)
-        print(pred)
-        print(proba)
+            # now we have exactly 1 row which has no NaN, so choose that row
+            df.dropna(axis=0, inplace=True)
 
-        # step 5: update graph
-        # plot_update(pred)
+            input = df.to_numpy()
 
-        # step 6: now, we reinit datapoints and the Vals dict and start again
+            # step 4: predict
+            pred = rf_model.predict(input)
+            proba = rf_model.predict_proba(input)
+
+            if pred == "undefined":
+                print(f"Not focused")
+            else:
+                print("----- FOCUSED!! ----")
+            print(proba)
+
+            # step 5: update graph
+            # plot_update(pred)
+
+            # step 6: now, we reinit datapoints and the Vals dict and start again
+            datapoints = 0
+            Vals = defaultdict(list, {k: [] for k in cols})
+    except:
+        error_happened = True
+        rf_model = pickle.load(open("final_random_forest_model_BCI.sav", "rb"))
         datapoints = 0
         Vals = defaultdict(list, {k: [] for k in cols})
+        print("error happened pass")
 
 
 def init_plot():

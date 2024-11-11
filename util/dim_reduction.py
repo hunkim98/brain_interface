@@ -51,7 +51,6 @@ class IndependentComponentAnalysis:
         # check if any nan
         # print(dt_norm[cols].isna().sum())
         # check for any inf
-        # print(dt_norm[cols].max(), dt_norm[cols].min())
 
         # perform the FastICA for all components.
         self.ica = FastICA(n_components=len(cols))

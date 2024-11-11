@@ -4,3 +4,8 @@ data/motor_imagery
 data/motor_imagery_copy
 data/test
 intermediate_datafiles
+data/emotiv
+muse_digit
+data/speech
+muse_scaled.csv
+knn_model_binary.pkl
