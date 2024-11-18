@@ -9,3 +9,4 @@ muse_digit
 data/speech
 muse_scaled.csv
 knn_model_binary.pkl
+rf_model_emotiv_1890.pkl
